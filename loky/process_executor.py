@@ -710,7 +710,7 @@ def _queue_management_worker(executor_reference,
             # down even if it is shutdown by the interpreter exiting.
             with executor_flags.shutdown_lock:
                 executor_flags.shutdown = True
-            if executor_flags.kill_workers:
+            if executor_flags.kill_workers or _global_shutdown:
                 while pending_work_items:
                     _, work_item = pending_work_items.popitem()
                     work_item.future.set_exception(ShutdownExecutorError(
