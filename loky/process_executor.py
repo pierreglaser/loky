@@ -602,10 +602,10 @@ def _queue_management_worker(executor_reference,
     readers = [result_reader, wakeup_reader]
 
     while True:
-        _add_call_item_to_queue(pending_work_items,
-                                running_work_items,
-                                work_ids_queue,
-                                call_queue)
+        # _add_call_item_to_queue(pending_work_items,
+        #                         running_work_items,
+        #                         work_ids_queue,
+        #                         call_queue)
         # Wait for a result to be ready in the result_queue while checking
         # that all worker processes are still running, or for a wake up
         # signal send. The wake up signals come either from new tasks being
@@ -1034,7 +1034,14 @@ class ProcessPoolExecutor(_base.Executor):
             w = _WorkItem(f, fn, args, kwargs)
 
             self._pending_work_items[self._queue_count] = w
-            self._work_ids.put(self._queue_count)
+            self._running_work_items += [self._queue_count]
+            # self._work_ids.put(self._queue_count)
+            self._call_queue.put(_CallItem(self._queue_count,
+                                           w.fn,
+                                           w.args,
+                                           w.kwargs),
+                                 block=True)
+
             self._queue_count += 1
             # Wake up queue management thread
             self._queue_management_thread_wakeup.wakeup()
