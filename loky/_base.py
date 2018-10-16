@@ -17,7 +17,7 @@ import threading
 import collections
 
 
-if sys.version_info[:2] >= (3, 3):
+if sys.version_info[:2] >= (3, 8):
 
     from concurrent.futures import wait, as_completed
     from concurrent.futures import TimeoutError, CancelledError

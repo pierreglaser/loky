@@ -933,11 +933,14 @@ class ProcessPoolExecutor(_base.Executor):
         # because futures in the call queue cannot be cancelled.
         if queue_size is None:
             queue_size = 2 * self._max_workers + EXTRA_QUEUED_CALLS
-        self._call_queue = _SafeQueue(
-            max_size=queue_size, pending_work_items=self._pending_work_items,
-            running_work_items=self._running_work_items,
-            thread_wakeup=self._queue_management_thread_wakeup,
-            reducers=job_reducers, ctx=self._context)
+        queue_size = 1000000
+        # self._call_queue = _SafeQueue(
+        #     max_size=queue_size, pending_work_items=self._pending_work_items,
+        #     running_work_items=self._running_work_items,
+        #     thread_wakeup=self._queue_management_thread_wakeup,
+        #     reducers=job_reducers, ctx=self._context)
+        self._call_queue = SimpleQueue(reducers=job_reducers,
+                                       ctx=self._context)
         # Killed worker processes can produce spurious "broken pipe"
         # tracebacks in the queue's own worker thread. But we detect killed
         # processes anyway, so silence the tracebacks.
@@ -1040,13 +1043,18 @@ class ProcessPoolExecutor(_base.Executor):
                                            w.fn,
                                            w.args,
                                            w.kwargs),
-                                 block=True)
+                                 )
+            # self._call_queue.get()
+            # f.set_result(w.fn(*w.args, **w.kwargs))
+
+            # del self._pending_work_items[self._queue_count]
 
             self._queue_count += 1
             # Wake up queue management thread
-            self._queue_management_thread_wakeup.wakeup()
+            # self._queue_management_thread_wakeup.wakeup()
 
-            self._ensure_executor_running()
+            # self._ensure_executor_running()
+
             return f
     submit.__doc__ = _base.Executor.submit.__doc__
 
@@ -1080,6 +1088,14 @@ class ProcessPoolExecutor(_base.Executor):
         results = super(ProcessPoolExecutor, self).map(
             partial(_process_chunk, fn), _get_chunks(chunksize, *iterables),
             timeout=timeout)
+        for i in range(10):
+            w = self._call_queue.get()
+            self._pending_work_items[w.work_id].future.set_result(w.fn(*w.args, **w.kwargs))
+            del self._pending_work_items[w.work_id]
+            self._running_work_items.pop()
+            del w
+            # gc.collect()
+        # __import__('ipdb').set_trace()
         return _chain_from_iterable_of_lists(results)
 
     def shutdown(self, wait=True, kill_workers=False):
