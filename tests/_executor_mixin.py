@@ -196,6 +196,20 @@ class ThreadExecutorMixin(object):
     worker_count = 5
     executor_kwargs = {}
 
+    @classmethod
+    def setup_class(cls):
+        print("setup class with {}".format(cls.context))
+        global _test_event
+        if _test_event is None:
+            _test_event = cls.context.Event()
+
+    @classmethod
+    def teardown_class(cls):
+        print("teardown class with {}".format(cls.context))
+        global _test_event
+        if _test_event is not None:
+            _test_event = None
+
     def setUp(self):
         super(ThreadExecutorMixin, self).setUp()
 

@@ -495,6 +495,8 @@ def _add_call_item_to_queue(pending_work_items,
 
             if work_item.future.set_running_or_notify_cancel():
                 running_work_items += [work_id]
+                print(work_item.args)
+                print(work_item.kwargs)
                 call_queue.put(_CallItem(work_id,
                                          work_item.fn,
                                          work_item.args,

@@ -30,6 +30,7 @@ from loky.backend.context import get_context
 from loky.backend.compat import queue
 
 from ._executor_mixin import ThreadExecutorMixin
+from ._test_process_executor import WaitTests
 from .utils import captured_stderr, check_subprocess_call
 
 
@@ -342,107 +343,6 @@ class ThreadPoolShutdownTest(ThreadPoolMixin, ExecutorShutdownTest,
             r = re.compile('ThreadPoolExecutor-\d+_[0-4]')
             assert r.search(t.name)
             t.join()
-
-
-class WaitTests:
-
-    def test_first_completed(self):
-        future1 = self.executor.submit(mul, 21, 2)
-        future2 = self.executor.submit(time.sleep, 1.5)
-
-        done, not_done = _base.wait(
-                [CANCELLED_FUTURE, future1, future2],
-                return_when=_base.FIRST_COMPLETED)
-
-        self.assertEqual(set([future1]), done)
-        self.assertEqual(set([CANCELLED_FUTURE, future2]), not_done)
-
-    def test_first_completed_some_already_completed(self):
-        future1 = self.executor.submit(time.sleep, 1.5)
-
-        finished, pending = _base.wait(
-                 [CANCELLED_AND_NOTIFIED_FUTURE, SUCCESSFUL_FUTURE, future1],
-                 return_when=_base.FIRST_COMPLETED)
-
-        self.assertEqual(
-                set([CANCELLED_AND_NOTIFIED_FUTURE, SUCCESSFUL_FUTURE]),
-                finished)
-        self.assertEqual(set([future1]), pending)
-
-    def test_first_exception(self):
-        future1 = self.executor.submit(mul, 2, 21)
-        future2 = self.executor.submit(sleep_and_raise, 1.5)
-        future3 = self.executor.submit(time.sleep, 3)
-
-        finished, pending = _base.wait(
-                [future1, future2, future3],
-                return_when=_base.FIRST_EXCEPTION)
-
-        self.assertEqual(set([future1, future2]), finished)
-        self.assertEqual(set([future3]), pending)
-
-    def test_first_exception_some_already_complete(self):
-        future1 = self.executor.submit(divmod, 21, 0)
-        future2 = self.executor.submit(time.sleep, 1.5)
-
-        finished, pending = _base.wait(
-                [SUCCESSFUL_FUTURE,
-                 CANCELLED_FUTURE,
-                 CANCELLED_AND_NOTIFIED_FUTURE,
-                 future1, future2],
-                return_when=_base.FIRST_EXCEPTION)
-
-        self.assertEqual(set([SUCCESSFUL_FUTURE,
-                              CANCELLED_AND_NOTIFIED_FUTURE,
-                              future1]), finished)
-        self.assertEqual(set([CANCELLED_FUTURE, future2]), pending)
-
-    def test_first_exception_one_already_failed(self):
-        future1 = self.executor.submit(time.sleep, 2)
-
-        finished, pending = _base.wait(
-                 [EXCEPTION_FUTURE, future1],
-                 return_when=_base.FIRST_EXCEPTION)
-
-        self.assertEqual(set([EXCEPTION_FUTURE]), finished)
-        self.assertEqual(set([future1]), pending)
-
-    def test_all_completed(self):
-        future1 = self.executor.submit(divmod, 2, 0)
-        future2 = self.executor.submit(mul, 2, 21)
-
-        finished, pending = _base.wait(
-                [SUCCESSFUL_FUTURE,
-                 CANCELLED_AND_NOTIFIED_FUTURE,
-                 EXCEPTION_FUTURE,
-                 future1,
-                 future2],
-                return_when=_base.ALL_COMPLETED)
-
-        self.assertEqual(set([SUCCESSFUL_FUTURE,
-                              CANCELLED_AND_NOTIFIED_FUTURE,
-                              EXCEPTION_FUTURE,
-                              future1,
-                              future2]), finished)
-        self.assertEqual(set(), pending)
-
-    def test_timeout(self):
-        future1 = self.executor.submit(mul, 6, 7)
-        future2 = self.executor.submit(time.sleep, 6)
-
-        finished, pending = _base.wait(
-                [CANCELLED_AND_NOTIFIED_FUTURE,
-                 EXCEPTION_FUTURE,
-                 SUCCESSFUL_FUTURE,
-                 future1, future2],
-                timeout=5,
-                return_when=_base.ALL_COMPLETED)
-
-        self.assertEqual(set([CANCELLED_AND_NOTIFIED_FUTURE,
-                              EXCEPTION_FUTURE,
-                              SUCCESSFUL_FUTURE,
-                              future1]), finished)
-        self.assertEqual(set([future2]), pending)
 
 
 class ThreadPoolWaitTests(ThreadPoolMixin, WaitTests, BaseTestCase):
