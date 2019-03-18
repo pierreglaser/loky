@@ -148,7 +148,7 @@ if sys.platform != "win32":
                                str(reduction._mk_inheritable(child_r))]
                 reduction._mk_inheritable(child_w)
                 if tracker_fd is not None:
-                    cmd_python += ['--semaphore',
+                    cmd_python += ['--tracker',
                                    str(reduction._mk_inheritable(tracker_fd))]
                 self._fds.extend([child_r, child_w, tracker_fd])
                 from .fork_exec import fork_exec
@@ -180,7 +180,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Command line parser')
     parser.add_argument('--pipe', type=int, required=True,
                         help='File handle for the pipe')
-    parser.add_argument('--semaphore', type=int, required=True,
+    parser.add_argument('--tracker', type=int, required=True,
                         help='File handle name for the semaphore tracker')
     parser.add_argument('--process-name', type=str, default=None,
                         help='Identifier for debugging purpose')
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     info = dict()
-    ressource_tracker._ressource_tracker._fd = args.semaphore
+    ressource_tracker._ressource_tracker._fd = args.tracker
 
     exitcode = 1
     try:
