@@ -18,7 +18,7 @@ import _multiprocessing
 from time import time as _time
 
 from .context import assert_spawning
-from . import semaphore_tracker
+from . import ressource_tracker
 from multiprocessing import process
 from multiprocessing import util
 
@@ -87,14 +87,14 @@ class SemLock(object):
 
         # When the object is garbage collected or the
         # process shuts down we unlink the semaphore name
-        semaphore_tracker.register(self._semlock.name)
+        ressource_tracker.register(self._semlock.name)
         util.Finalize(self, SemLock._cleanup, (self._semlock.name,),
                       exitpriority=0)
 
     @staticmethod
     def _cleanup(name):
         sem_unlink(name)
-        semaphore_tracker.unregister(name)
+        ressource_tracker.unregister(name)
 
     def _make_methods(self):
         self.acquire = self._semlock.acquire

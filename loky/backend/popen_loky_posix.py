@@ -17,7 +17,7 @@ if sys.version_info[:2] < (3, 3):
     ProcessLookupError = OSError
 
 if sys.platform != "win32":
-    from . import semaphore_tracker
+    from . import ressource_tracker
 
 
 __all__ = []
@@ -121,7 +121,7 @@ if sys.platform != "win32":
 
         def _launch(self, process_obj):
 
-            tracker_fd = semaphore_tracker._semaphore_tracker.getfd()
+            tracker_fd = ressource_tracker._ressource_tracker.getfd()
 
             fp = BytesIO()
             set_spawning_popen(self)
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     info = dict()
-    semaphore_tracker._semaphore_tracker._fd = args.semaphore
+    ressource_tracker._ressource_tracker._fd = args.semaphore
 
     exitcode = 1
     try:

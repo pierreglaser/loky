@@ -12,38 +12,38 @@ import warnings
 import weakref
 
 from loky import ProcessPoolExecutor
-import loky.backend.semaphore_tracker as semaphore_tracker
+import loky.backend.ressource_tracker as ressource_tracker
 from loky.backend.semlock import sem_unlink
 from loky.backend.context import get_context
 
 
-def get_sem_tracker_pid():
-    semaphore_tracker.ensure_running()
-    return semaphore_tracker._semaphore_tracker._pid
+def get_rtracker_pid():
+    ressource_tracker.ensure_running()
+    return ressource_tracker._ressource_tracker._pid
 
 
 class TestSemaphoreTracker:
 
     @pytest.mark.skipif(sys.platform == "win32",
-                        reason="no semaphore_tracker on windows")
-    def test_child_retrieves_semaphore_tracker(self):
-        parent_sem_tracker_pid = get_sem_tracker_pid()
+                        reason="no ressource_tracker on windows")
+    def test_child_retrieves_ressource_tracker(self):
+        parent_rtracker_pid = get_rtracker_pid()
         executor = ProcessPoolExecutor(max_workers=2)
-        child_sem_tracker_pid = executor.submit(get_sem_tracker_pid).result()
+        child_rtracker_pid = executor.submit(get_rtracker_pid).result()
 
         # First simple pid retrieval check (see #200)
-        assert child_sem_tracker_pid == parent_sem_tracker_pid
+        assert child_rtracker_pid == parent_rtracker_pid
 
         # Register a semaphore in the parent process, and un-register it in the
         # child process. If the two processes do not share the same
-        # semaphore_tracker, a cache KeyError should be printed in stderr.
+        # ressource_tracker, a cache KeyError should be printed in stderr.
         import subprocess
         semlock_name = 'loky-mysemaphore'
         cmd = '''if 1:
         import os, sys
 
         from loky import ProcessPoolExecutor
-        from loky.backend import semaphore_tracker
+        from loky.backend import ressource_tracker
         from loky.backend.semlock import SemLock
 
         semaphore_tracker.VERBOSE=True
@@ -55,14 +55,14 @@ class TestSemaphoreTracker:
         # here will not pollute the stderr pipe with a cache KeyError
         # afterwards.
         lock = SemLock(1, 1, 1, name=semlock_name)
-        semaphore_tracker.register(semlock_name)
+        ressource_tracker.register(semlock_name)
 
         def unregister(name):
-            # semaphore_tracker.unregister is actually a bound method of the
+            # ressource_tracker.unregister is actually a bound method of the
             # SemaphoreTracker. We need a custom wrapper to avoid object
             # serialization.
-            from loky.backend import semaphore_tracker
-            semaphore_tracker.unregister(semlock_name)
+            from loky.backend import ressource_tracker
+            ressource_tracker.unregister(semlock_name)
 
         e = ProcessPoolExecutor(1)
         e.submit(unregister, semlock_name).result()
@@ -86,8 +86,8 @@ class TestSemaphoreTracker:
 
     # The following four tests are inspired from cpython _test_multiprocessing
     @pytest.mark.skipif(sys.platform == "win32",
-                        reason="no semaphore_tracker on windows")
-    def test_semaphore_tracker(self):
+                        reason="no ressource_tracker on windows")
+    def test_ressource_tracker(self):
         #
         # Check that killing process does not leak named semaphores
         #
@@ -133,31 +133,32 @@ class TestSemaphoreTracker:
         assert ctx.value.errno in (errno.ENOENT, errno.EINVAL)
         err = p.stderr.read().decode('utf-8')
         p.stderr.close()
-        expected = ('semaphore_tracker: There appear to be 2 leaked '
+        # TODO: output per type?
+        expected = ('ressource_tracker: There appear to be 2 leaked '
                     'semaphores')
         assert re.search(expected, err) is not None
 
         # lock1 is still registered, but was destroyed externally: the tracker
         # is expected to complain.
-        expected = ("semaphore_tracker: %s: (OSError\\(%d|"
+        expected = ("ressource_tracker: %s: (OSError\\(%d|"
                     "FileNotFoundError)" % (name1, errno.ENOENT))
         assert re.search(expected, err) is not None
 
-    def check_semaphore_tracker_death(self, signum, should_die):
+    def check_ressource_tracker_death(self, signum, should_die):
         # bpo-31310: if the semaphore tracker process has died, it should
         # be restarted implicitly.
-        from loky.backend.semaphore_tracker import _semaphore_tracker
-        pid = _semaphore_tracker._pid
+        from loky.backend.ressource_tracker import _ressource_tracker
+        pid = _ressource_tracker._pid
         if pid is not None:
             os.kill(pid, signal.SIGKILL)
             os.waitpid(pid, 0)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            _semaphore_tracker.ensure_running()
+            _ressource_tracker.ensure_running()
             # in python < 3.3 , the race condition described in bpo-33613 still
             # exists, as this fixe requires signal.pthread_sigmask
             time.sleep(1.0)
-        pid = _semaphore_tracker._pid
+        pid = _ressource_tracker._pid
 
         os.kill(pid, signum)
         time.sleep(1.0)  # give it time to die
@@ -183,27 +184,27 @@ class TestSemaphoreTracker:
                 assert len(all_warn) == 1
                 the_warn = all_warn[0]
                 assert issubclass(the_warn.category, UserWarning)
-                assert "semaphore_tracker: process died" in str(
+                assert "ressource_tracker: process died" in str(
                     the_warn.message)
             else:
                 assert len(all_warn) == 0
 
     @pytest.mark.skipif(sys.platform == "win32",
-                        reason="no semaphore_tracker on windows")
-    def test_semaphore_tracker_sigint(self):
-        # Catchable signal (ignored by semaphore tracker)
-        self.check_semaphore_tracker_death(signal.SIGINT, False)
+                        reason="no ressource_tracker on windows")
+    def test_ressource_tracker_sigint(self):
+        # Catchable signal (ignored by ressource tracker)
+        self.check_ressource_tracker_death(signal.SIGINT, False)
 
     @pytest.mark.skipif(sys.platform == "win32",
-                        reason="no semaphore_tracker on windows")
-    def test_semaphore_tracker_sigterm(self):
-        # Catchable signal (ignored by semaphore tracker)
-        self.check_semaphore_tracker_death(signal.SIGTERM, False)
+                        reason="no ressource_tracker on windows")
+    def test_ressource_tracker_sigterm(self):
+        # Catchable signal (ignored by ressource tracker)
+        self.check_ressource_tracker_death(signal.SIGTERM, False)
 
     @pytest.mark.skipif(sys.platform == "win32",
-                        reason="no semaphore_tracker on windows")
+                        reason="no ressource_tracker on windows")
     @pytest.mark.skipif(sys.version_info[0] < 3,
                         reason="warnings.catch_warnings limitation")
-    def test_semaphore_tracker_sigkill(self):
+    def test_ressource_tracker_sigkill(self):
         # Uncatchable signal.
-        self.check_semaphore_tracker_death(signal.SIGKILL, True)
+        self.check_ressource_tracker_death(signal.SIGKILL, True)

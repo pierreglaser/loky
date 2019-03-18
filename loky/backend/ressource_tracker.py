@@ -47,7 +47,7 @@ _IGNORED_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 VERBOSE = False
 
 
-class SemaphoreTracker(object):
+class RessourceTracker(object):
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -81,7 +81,7 @@ class SemaphoreTracker(object):
                 self._fd = None
                 self._pid = None
 
-                warnings.warn('semaphore_tracker: process died unexpectedly, '
+                warnings.warn('ressource_tracker: process died unexpectedly, '
                               'relaunching.  Some semaphores might leak.')
 
             fds_to_pass = []
@@ -160,11 +160,11 @@ class SemaphoreTracker(object):
         assert nbytes == len(msg)
 
 
-_semaphore_tracker = SemaphoreTracker()
-ensure_running = _semaphore_tracker.ensure_running
-register = _semaphore_tracker.register
-unregister = _semaphore_tracker.unregister
-getfd = _semaphore_tracker.getfd
+_ressource_tracker = RessourceTracker()
+ensure_running = _ressource_tracker.ensure_running
+register = _ressource_tracker.register
+unregister = _ressource_tracker.unregister
+getfd = _ressource_tracker.getfd
 
 
 def main(fd, verbose=0):
@@ -221,7 +221,7 @@ def main(fd, verbose=0):
         # all processes have terminated; cleanup any remaining semaphores
         if cache:
             try:
-                warnings.warn('semaphore_tracker: There appear to be %d '
+                warnings.warn('ressource_tracker: There appear to be %d '
                               'leaked semaphores to clean up at shutdown' %
                               len(cache))
             except Exception:
@@ -238,7 +238,7 @@ def main(fd, verbose=0):
                                          .format(name))
                         sys.stderr.flush()
                 except Exception as e:
-                    warnings.warn('semaphore_tracker: %s: %r' % (name, e))
+                    warnings.warn('ressource_tracker: %s: %r' % (name, e))
             finally:
                 pass
 
