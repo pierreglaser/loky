@@ -23,6 +23,7 @@
 #
 
 import os
+import shutil
 import sys
 import signal
 import warnings
@@ -43,6 +44,11 @@ __all__ = ['ensure_running', 'register', 'unregister']
 
 _HAVE_SIGMASK = hasattr(signal, 'pthread_sigmask')
 _IGNORED_SIGNALS = (signal.SIGINT, signal.SIGTERM)
+
+_CLEANUP_FNS = {
+    'folder': shutil.rmtree,
+    'semlock': sem_unlink
+}
 
 VERBOSE = False
 
@@ -132,26 +138,26 @@ class RessourceTracker(object):
                 os.close(r)
 
     def _check_alive(self):
-        '''Check for the existence of the semaphore tracker process.'''
+        '''Check for the existence of the ressource tracker process.'''
         try:
-            self._send('PROBE', '')
+            self._send('PROBE', '', 'semlock')
         except BrokenPipeError:
             return False
         else:
             return True
 
-    def register(self, name):
-        '''Register name of semaphore with semaphore tracker.'''
+    def register(self, name, rtype):
+        '''Register a named ressource with ressource tracker.'''
         self.ensure_running()
-        self._send('REGISTER', name)
+        self._send('REGISTER', name, rtype)
 
-    def unregister(self, name):
-        '''Unregister name of semaphore with semaphore tracker.'''
+    def unregister(self, name, rtype):
+        '''Unregister a named ressource with semaphore tracker.'''
         self.ensure_running()
-        self._send('UNREGISTER', name)
+        self._send('UNREGISTER', name, rtype)
 
-    def _send(self, cmd, name):
-        msg = '{0}:{1}\n'.format(cmd, name).encode('ascii')
+    def _send(self, cmd, name, rtype):
+        msg = '{0}:{1}:{2}\n'.format(cmd, name, rtype).encode('ascii')
         if len(name) > 512:
             # posix guarantees that writes to a pipe of less than PIPE_BUF
             # bytes are atomic, and that PIPE_BUF >= 512
@@ -192,23 +198,26 @@ def main(fd, verbose=0):
         with os.fdopen(fd, 'rb') as f:
             for line in f:
                 try:
-                    cmd, name = line.strip().split(b':')
-                    if cmd == b'REGISTER':
-                        name = name.decode('ascii')
-                        cache.add(name)
+                    cmd, name, rtype = line.strip().decode('ascii').split(':')
+                    cleanup_fn = _CLEANUP_FNS.get(rtype, None)
+                    if cleanup_fn is None:
+                        raise ValueError('Cannot register {}: unrecognized'
+                                         ' type {}' .format(name, rtype))
+
+                    if cmd == 'REGISTER':
+                        cache.add((name, cleanup_fn))
                         if verbose:  # pragma: no cover
-                            sys.stderr.write("[SemaphoreTracker] register {}\n"
-                                             .format(name))
+                            sys.stderr.write("[SemaphoreTracker] register {}"
+                                             " {}\n" .format(rtype, name))
                             sys.stderr.flush()
-                    elif cmd == b'UNREGISTER':
-                        name = name.decode('ascii')
-                        cache.remove(name)
+                    elif cmd == 'UNREGISTER':
+                        cache.remove((name, cleanup_fn))
                         if verbose:  # pragma: no cover
                             sys.stderr.write("[SemaphoreTracker] unregister {}"
-                                             ": cache({})\n"
-                                             .format(name, len(cache)))
+                                             " {}: cache({})\n"
+                                             .format(name, rtype, len(cache)))
                             sys.stderr.flush()
-                    elif cmd == b'PROBE':
+                    elif cmd == 'PROBE':
                         pass
                     else:
                         raise RuntimeError('unrecognized command %r' % cmd)
@@ -222,17 +231,17 @@ def main(fd, verbose=0):
         if cache:
             try:
                 warnings.warn('ressource_tracker: There appear to be %d '
-                              'leaked semaphores to clean up at shutdown' %
+                              'leaked ressources to clean up at shutdown' %
                               len(cache))
             except Exception:
                 pass
-        for name in cache:
+        for name, cleanup_fn in cache:
             # For some reason the process which created and registered this
             # semaphore has failed to unregister it. Presumably it has died.
             # We therefore unlink it.
             try:
                 try:
-                    sem_unlink(name)
+                    cleanup_fn(name)
                     if verbose:  # pragma: no cover
                         sys.stderr.write("[SemaphoreTracker] unlink {}\n"
                                          .format(name))
