@@ -17,6 +17,9 @@ from loky.backend.semlock import sem_unlink
 from loky.backend.context import get_context
 
 
+def _ressource_unlink(name, rtype):
+    ressource_tracker._CLEANUP_FNS[rtype](name)
+
 def get_rtracker_pid():
     ressource_tracker.ensure_running()
     return ressource_tracker._ressource_tracker._pid
@@ -55,17 +58,17 @@ class TestSemaphoreTracker:
         # here will not pollute the stderr pipe with a cache KeyError
         # afterwards.
         lock = SemLock(1, 1, 1, name=semlock_name)
-        ressource_tracker.register(semlock_name)
+        ressource_tracker.register(semlock_name, "semlock")
 
-        def unregister(name):
+        def unregister(name, rtype):
             # ressource_tracker.unregister is actually a bound method of the
             # SemaphoreTracker. We need a custom wrapper to avoid object
             # serialization.
             from loky.backend import ressource_tracker
-            ressource_tracker.unregister(semlock_name)
+            ressource_tracker.unregister(semlock_name, rtype)
 
         e = ProcessPoolExecutor(1)
-        e.submit(unregister, semlock_name).result()
+        e.submit(unregister, semlock_name, "semlock").result()
         e.shutdown()
         '''
         try:
@@ -87,23 +90,37 @@ class TestSemaphoreTracker:
     # The following four tests are inspired from cpython _test_multiprocessing
     @pytest.mark.skipif(sys.platform == "win32",
                         reason="no ressource_tracker on windows")
-    def test_ressource_tracker(self):
+    @pytest.mark.parametrize("rtype", ["folder", "semlock"])
+    def test_ressource_tracker_lo(self, rtype):
         #
         # Check that killing process does not leak named semaphores
         #
         import subprocess
         cmd = '''if 1:
-            import time, os
-            from loky.backend.synchronize import Lock
+            import time, os, tempfile
+            from loky.backend.semlock import SemLock
+            from loky.backend import ressource_tracker
+
+            def create_ressource(rtype):
+                if rtype == "folder":
+                    return tempfile.mkdtemp()
+                elif rtype == "semlock":
+                    name = "/loky-%i-%s" % (os.getpid(), next(SemLock._rand))
+                    lock = SemLock(1, 1, 1, name)
+                    return name
+                else:
+                    raise ValueError(
+                        "Ressource type {{}} not understood".format(rtype))
+
 
             # close manually the read end of the pipe in the child process
             # because pass_fds does not exist for python < 3.2
-            os.close(%d)
+            os.close({r})
 
-            lock1 = Lock()
-            lock2 = Lock()
-            os.write(%d, lock1._semlock.name.encode("ascii") + b"\\n")
-            os.write(%d, lock2._semlock.name.encode("ascii") + b"\\n")
+            for _ in range(2):
+                rname = create_ressource("{rtype}")
+                ressource_tracker.register(rname, "{rtype}")
+                os.write({w}, rname.encode("ascii") + b"\\n")
             time.sleep(10)
         '''
         r, w = os.pipe()
@@ -113,7 +130,7 @@ class TestSemaphoreTracker:
         else:
             fd_kws = {'close_fds': False}
         p = subprocess.Popen([sys.executable,
-                             '-E', '-c', cmd % (r, w, w)],
+                             '-E', '-c', cmd.format(r=r, w=w, rtype=rtype)],
                              stderr=subprocess.PIPE,
                              **fd_kws)
         os.close(w)
@@ -123,19 +140,19 @@ class TestSemaphoreTracker:
 
         # subprocess holding a reference to lock1 is still alive, so this call
         # should succeed
-        sem_unlink(name1)
+        _ressource_unlink(name1, rtype)
         p.terminate()
         p.wait()
         time.sleep(2.0)
         with pytest.raises(OSError) as ctx:
-            sem_unlink(name2)
+            _ressource_unlink(name2, rtype)
         # docs say it should be ENOENT, but OSX seems to give EINVAL
         assert ctx.value.errno in (errno.ENOENT, errno.EINVAL)
         err = p.stderr.read().decode('utf-8')
         p.stderr.close()
         # TODO: output per type?
         expected = ('ressource_tracker: There appear to be 2 leaked '
-                    'semaphores')
+                    'ressources')
         assert re.search(expected, err) is not None
 
         # lock1 is still registered, but was destroyed externally: the tracker
