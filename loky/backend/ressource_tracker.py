@@ -1,5 +1,6 @@
 ###############################################################################
-# Server process to keep track of unlinked semaphores and clean them.
+# Server process to keep track of unlinked ressources, like folders and
+# semaphores and clean them.
 #
 # author: Thomas Moreau
 #
@@ -10,17 +11,16 @@
 #
 
 #
-# On Unix we run a server process which keeps track of unlinked
-# semaphores. The server ignores SIGINT and SIGTERM and reads from a
-# pipe.  Every other process of the program has a copy of the writable
-# end of the pipe, so we get EOF when all other processes have exited.
-# Then the server process unlinks any remaining semaphore names.
+# On Unix we run a server process which keeps track of unlinked semaphores and
+# folders . The server ignores SIGINT and SIGTERM and reads from a pipe.  Every
+# other process of the program has a copy of the writable end of the pipe, so
+# we get EOF when all other processes have exited.  Then the server process
+# unlinks any remaining ressources.
 #
-# This is important because the system only supports a limited number
-# of named semaphores, and they will not be automatically removed till
-# the next reboot.  Without this semaphore tracker process, "killall
-# python" would probably leave unlinked semaphores.
-#
+# For semaphores, this is important because the system only supports a limited
+# number of named semaphores, and they will not be automatically removed till
+# the next reboot.  Without this ressource tracker process, "killall python"
+# would probably leave unlinked semaphores.
 
 import os
 import shutil
@@ -88,7 +88,8 @@ class RessourceTracker(object):
                 self._pid = None
 
                 warnings.warn('ressource_tracker: process died unexpectedly, '
-                              'relaunching.  Some semaphores might leak.')
+                              'relaunching.  Some folders/sempahores might '
+                              'leak.')
 
             fds_to_pass = []
             try:
@@ -152,7 +153,7 @@ class RessourceTracker(object):
         self._send('REGISTER', name, rtype)
 
     def unregister(self, name, rtype):
-        '''Unregister a named ressource with semaphore tracker.'''
+        '''Unregister a named ressource with ressource tracker.'''
         self.ensure_running()
         self._send('UNREGISTER', name, rtype)
 
@@ -194,7 +195,7 @@ def main(fd, verbose=0):
 
     cache = set()
     try:
-        # keep track of registered/unregistered semaphores
+        # keep track of registered/unregistered ressources
         with os.fdopen(fd, 'rb') as f:
             for line in f:
                 try:
@@ -227,7 +228,7 @@ def main(fd, verbose=0):
                     except BaseException:
                         pass
     finally:
-        # all processes have terminated; cleanup any remaining semaphores
+        # all processes have terminated; cleanup any remaining ressources
         if cache:
             try:
                 warnings.warn('ressource_tracker: There appear to be %d '
