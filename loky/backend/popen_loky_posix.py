@@ -17,7 +17,7 @@ if sys.version_info[:2] < (3, 3):
     ProcessLookupError = OSError
 
 if sys.platform != "win32":
-    from . import ressource_tracker
+    from . import resource_tracker
 
 
 __all__ = []
@@ -121,7 +121,7 @@ if sys.platform != "win32":
 
         def _launch(self, process_obj):
 
-            tracker_fd = ressource_tracker._ressource_tracker.getfd()
+            tracker_fd = resource_tracker._resource_tracker.getfd()
 
             fp = BytesIO()
             set_spawning_popen(self)
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     info = dict()
-    ressource_tracker._ressource_tracker._fd = args.tracker
+    resource_tracker._resource_tracker._fd = args.tracker
 
     exitcode = 1
     try:

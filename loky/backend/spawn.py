@@ -83,12 +83,12 @@ def get_preparation_data(name, init_main_module=True):
     )
 
     if sys.platform != "win32":
-        # TODO: enable ressource tracking for other ressources than semaphore
+        # TODO: enable resource tracking for other resources than semaphore
         # on windows?
-        # Pass the ressource_tracker pid to avoid re-spawning it in every child
-        from . import ressource_tracker
-        ressource_tracker.ensure_running()
-        d['tracker_pid'] = ressource_tracker._ressource_tracker._pid
+        # Pass the resource_tracker pid to avoid re-spawning it in every child
+        from . import resource_tracker
+        resource_tracker.ensure_running()
+        d['tracker_pid'] = resource_tracker._resource_tracker._pid
 
     # Figure out whether to initialise main in the subprocess as a module
     # or through direct execution (or to leave it alone entirely)
@@ -154,8 +154,8 @@ def prepare(data):
         process.ORIGINAL_DIR = data['orig_dir']
 
     if 'tracker_pid' in data:
-        from . import ressource_tracker
-        ressource_tracker._ressource_tracker._pid = data["tracker_pid"]
+        from . import resource_tracker
+        resource_tracker._resource_tracker._pid = data["tracker_pid"]
 
     if 'init_main_from_name' in data:
         _fixup_main_from_name(data['init_main_from_name'])

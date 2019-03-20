@@ -1,5 +1,5 @@
 ###############################################################################
-# Server process to keep track of unlinked ressources, like folders and
+# Server process to keep track of unlinked resources, like folders and
 # semaphores and clean them.
 #
 # author: Thomas Moreau
@@ -15,11 +15,11 @@
 # folders . The server ignores SIGINT and SIGTERM and reads from a pipe.  Every
 # other process of the program has a copy of the writable end of the pipe, so
 # we get EOF when all other processes have exited.  Then the server process
-# unlinks any remaining ressources.
+# unlinks any remaining resources.
 #
 # For semaphores, this is important because the system only supports a limited
 # number of named semaphores, and they will not be automatically removed till
-# the next reboot.  Without this ressource tracker process, "killall python"
+# the next reboot.  Without this resource tracker process, "killall python"
 # would probably leave unlinked semaphores.
 
 import os
@@ -53,7 +53,7 @@ _CLEANUP_FNS = {
 VERBOSE = False
 
 
-class RessourceTracker(object):
+class ResourceTracker(object):
 
     def __init__(self):
         self._lock = threading.Lock()
@@ -139,7 +139,7 @@ class RessourceTracker(object):
                 os.close(r)
 
     def _check_alive(self):
-        '''Check for the existence of the ressource tracker process.'''
+        '''Check for the existence of the resource tracker process.'''
         try:
             self._send('PROBE', '', 'semlock')
         except BrokenPipeError:
@@ -148,12 +148,12 @@ class RessourceTracker(object):
             return True
 
     def register(self, name, rtype):
-        '''Register a named ressource with ressource tracker.'''
+        '''Register a named resource with resource tracker.'''
         self.ensure_running()
         self._send('REGISTER', name, rtype)
 
     def unregister(self, name, rtype):
-        '''Unregister a named ressource with ressource tracker.'''
+        '''Unregister a named resource with resource tracker.'''
         self.ensure_running()
         self._send('UNREGISTER', name, rtype)
 
@@ -167,11 +167,11 @@ class RessourceTracker(object):
         assert nbytes == len(msg)
 
 
-_ressource_tracker = RessourceTracker()
-ensure_running = _ressource_tracker.ensure_running
-register = _ressource_tracker.register
-unregister = _ressource_tracker.unregister
-getfd = _ressource_tracker.getfd
+_resource_tracker = ResourceTracker()
+ensure_running = _resource_tracker.ensure_running
+register = _resource_tracker.register
+unregister = _resource_tracker.unregister
+getfd = _resource_tracker.getfd
 
 
 def main(fd, verbose=0):
@@ -195,7 +195,7 @@ def main(fd, verbose=0):
 
     cache = set()
     try:
-        # keep track of registered/unregistered ressources
+        # keep track of registered/unregistered resources
         with os.fdopen(fd, 'rb') as f:
             for line in f:
                 try:
@@ -228,11 +228,11 @@ def main(fd, verbose=0):
                     except BaseException:
                         pass
     finally:
-        # all processes have terminated; cleanup any remaining ressources
+        # all processes have terminated; cleanup any remaining resources
         if cache:
             try:
-                warnings.warn('ressource_tracker: There appear to be %d '
-                              'leaked ressources to clean up at shutdown' %
+                warnings.warn('resource_tracker: There appear to be %d '
+                              'leaked resources to clean up at shutdown' %
                               len(cache))
             except Exception:
                 pass
@@ -248,7 +248,7 @@ def main(fd, verbose=0):
                                          .format(name))
                         sys.stderr.flush()
                 except Exception as e:
-                    warnings.warn('ressource_tracker: %s: %r' % (name, e))
+                    warnings.warn('resource_tracker: %s: %r' % (name, e))
             finally:
                 pass
 
