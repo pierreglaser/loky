@@ -91,7 +91,7 @@ class TestSemaphoreTracker:
     @pytest.mark.skipif(sys.platform == "win32",
                         reason="no resource_tracker on windows")
     @pytest.mark.parametrize("rtype", ["folder", "semlock"])
-    def test_resource_tracker_lo(self, rtype):
+    def test_resource_tracker(self, rtype):
         #
         # Check that killing process does not leak named semaphores
         #
