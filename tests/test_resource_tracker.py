@@ -18,7 +18,7 @@ from loky.backend.context import get_context
 
 
 def _resource_unlink(name, rtype):
-    resource_tracker._CLEANUP_FNS[rtype](name)
+    resource_tracker._CLEANUP_FUNCS[rtype](name)
 
 def get_rtracker_pid():
     resource_tracker.ensure_running()

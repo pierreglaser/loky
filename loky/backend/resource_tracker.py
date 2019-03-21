@@ -45,7 +45,7 @@ __all__ = ['ensure_running', 'register', 'unregister']
 _HAVE_SIGMASK = hasattr(signal, 'pthread_sigmask')
 _IGNORED_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 
-_CLEANUP_FNS = {
+_CLEANUP_FUNCS = {
     'folder': shutil.rmtree,
     'semlock': sem_unlink
 }
@@ -113,7 +113,7 @@ class ResourceTracker(object):
                     for i in range(1, len(args)):
                         args[i] = re.sub("-R+", "-R", args[i])
                 args += ['-c', cmd % (r, VERBOSE)]
-                util.debug("launching Semaphore tracker: {}".format(args))
+                util.debug("launching resource tracker: {}".format(args))
                 # bpo-33613: Register a signal mask that will block the
                 # signals.  This signal mask will be inherited by the child
                 # that is going to be spawned and will protect the child from a
@@ -200,21 +200,22 @@ def main(fd, verbose=0):
             for line in f:
                 try:
                     cmd, name, rtype = line.strip().decode('ascii').split(':')
-                    cleanup_fn = _CLEANUP_FNS.get(rtype, None)
-                    if cleanup_fn is None:
-                        raise ValueError('Cannot register {}: unrecognized'
-                                         ' type {}' .format(name, rtype))
+                    cleanup_func = _CLEANUP_FUNCS.get(rtype, None)
+                    if cleanup_func is None:
+                        raise ValueError('Cannot register for automatic '
+                                         'cleanup: unknown resource type {}'
+                                         .format(name, rtype))
 
                     if cmd == 'REGISTER':
-                        cache.add((name, cleanup_fn))
+                        cache.add((name, cleanup_func))
                         if verbose:  # pragma: no cover
-                            sys.stderr.write("[SemaphoreTracker] register {}"
+                            sys.stderr.write("[ResourceTracker] register {}"
                                              " {}\n" .format(rtype, name))
                             sys.stderr.flush()
                     elif cmd == 'UNREGISTER':
-                        cache.remove((name, cleanup_fn))
+                        cache.remove((name, cleanup_func))
                         if verbose:  # pragma: no cover
-                            sys.stderr.write("[SemaphoreTracker] unregister {}"
+                            sys.stderr.write("[ResourceTracker] unregister {}"
                                              " {}: cache({})\n"
                                              .format(name, rtype, len(cache)))
                             sys.stderr.flush()
@@ -236,15 +237,15 @@ def main(fd, verbose=0):
                               len(cache))
             except Exception:
                 pass
-        for name, cleanup_fn in cache:
+        for name, cleanup_func in cache:
             # For some reason the process which created and registered this
             # semaphore has failed to unregister it. Presumably it has died.
             # We therefore unlink it.
             try:
                 try:
-                    cleanup_fn(name)
+                    cleanup_func(name)
                     if verbose:  # pragma: no cover
-                        sys.stderr.write("[SemaphoreTracker] unlink {}\n"
+                        sys.stderr.write("[ResourceTracker] unlink {}\n"
                                          .format(name))
                         sys.stderr.flush()
                 except Exception as e:
