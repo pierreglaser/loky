@@ -87,7 +87,7 @@ class ResourceTracker(object):
                 self._fd = None
                 self._pid = None
 
-                warnings.warn('ressource_tracker: process died unexpectedly, '
+                warnings.warn('resource_tracker: process died unexpectedly, '
                               'relaunching.  Some folders/sempahores might '
                               'leak.')
 

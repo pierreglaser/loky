@@ -220,6 +220,8 @@ class TestSemaphoreTracker:
 
     @pytest.mark.skipif(sys.platform == "win32",
                         reason="no resource_tracker on windows")
+    @pytest.mark.skipif(sys.version_info[0] < 3,
+                        reason="warnings.catch_warnings limitation")
     def test_resource_tracker_sigkill(self):
         # Uncatchable signal.
         self.check_resource_tracker_death(signal.SIGKILL, True)
