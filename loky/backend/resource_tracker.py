@@ -76,7 +76,7 @@ _CLEANUP_FUNCS = {
 if os.name == "posix":
     _CLEANUP_FUNCS['semlock'] = sem_unlink
 
-VERBOSE = False
+VERBOSE = True
 
 
 class ResourceTracker(object):
@@ -270,11 +270,11 @@ def main(fd, verbose=0):
                         else:
                             cache[rtype][name] += 1
 
-                        if verbose:  # pragma: no cover
-                            sys.stderr.write(
-                                "[ResourceTracker] incremented refcount of {} "
-                                "{} (current {})\n".format(
-                                    rtype, name, cache[rtype][name]))
+                        if verbose:
+                            sys.stderr.write( 
+                                "[ResourceTracker] incremented refcount of {} " 
+                                "{} (current {})\n".format( 
+                                    rtype, name, cache[rtype][name])) 
                             sys.stderr.flush()
                     elif cmd == 'UNREGISTER':
                         del cache[rtype][name]
