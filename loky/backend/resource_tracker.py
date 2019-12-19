@@ -186,6 +186,7 @@ class ResourceTracker(object):
 
     def register(self, name, rtype):
         '''Register a named resource, and increment its refcount.'''
+        a = 1
         self.ensure_running()
         self._send('REGISTER', name, rtype)
 
