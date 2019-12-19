@@ -234,7 +234,7 @@ def main(fd, verbose=0):
         except Exception:
             pass
 
-    a = 1
+    b = 1
     sys.stderr.write("Main resource tracker is running, hello\n")
     sys.stderr.flush()
 
