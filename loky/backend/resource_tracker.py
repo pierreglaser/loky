@@ -233,11 +233,11 @@ def main(fd, verbose=0):
         except Exception:
             pass
 
-    if verbose:  # pragma: no cover
-        sys.stderr.write("Main resource tracker is running\n")
-        sys.stderr.flush()
+    a = 1
+    sys.stderr.write("Main resource tracker is running, hello\n")
+    sys.stderr.flush()
 
-    cache = {rtype: dict() for rtype in _CLEANUP_FUNCS.keys()}
+    cache = {rtype: dict() for rtype in _CLEANUP_FUNCS.keys()} 
     try:
         # keep track of registered/unregistered resources
         if sys.platform == "win32":
