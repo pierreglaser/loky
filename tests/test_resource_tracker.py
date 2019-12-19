@@ -179,7 +179,7 @@ class TestResourceTracker:
         import time
         from loky.backend import resource_tracker
 
-        resource_tracker.VERBOSE=True
+        # resource_tracker.VERBOSE=True
 
         tmpfile = tempfile.NamedTemporaryFile(delete=False)
         filename = tmpfile.name
